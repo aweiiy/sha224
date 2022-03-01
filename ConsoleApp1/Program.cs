@@ -4,17 +4,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Diagnostics;
 
 namespace ConsoleApp1
 {
     internal class Program
     {
-    private static uint[] h =
+    private static uint[] H =
     {
      0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4
     };
 
-    private static uint[] k =
+    private static uint[] K =
     {
     0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
     0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
@@ -27,28 +28,53 @@ namespace ConsoleApp1
     };
         static void Main(string[] args)
         {
-
+            #region Failo nuskaitymas
             if (args.Length == 0) //tikrina ar paduotas failas
             {
                 Console.WriteLine("Nurodykite failą.");
+                Console.ReadLine();
+                Environment.Exit(0);
                 return;
             }
 
             string failas = args[0]; //paduotas failo pavadinimas
 
-            byte[] inputBytes = System.Text.ASCIIEncoding.UTF8.GetBytes(failas);
-            foreach (byte b in inputBytes)
-            {
-                Console.WriteLine(b);
-            }
+            byte[] Tekstas = File.ReadAllBytes(failas); //nuskaitomi baitai
 
-            byte[] SkaitytiTeksta = File.ReadAllBytes(failas); //nuskaitomi baitai
-            foreach (byte i in SkaitytiTeksta)
+            #endregion
+
+            #region PREPROCESSING
+            //Konstruojame bloka
+
+            int k; //nuliu skaitiklis
+
+            for (k = 0; (Tekstas.Length * 8 + 8 + k + 64) % 512 != 0; k += 8) ; // suks cikla kol ras i su kurio modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu.
+
+            byte[] Blokas = new byte[(64 + k + 8 + Tekstas.Length*8)/8];
+            
+            Tekstas.CopyTo(Blokas,0);
+
+            Blokas[Tekstas.Length] = 128; // (128 DEC = 10000000 BIN) pridedame 1 po teksto bitais
+
+            // for (int i = 1; i < (1 + (k / 8)); i++) // k + 1, nes yra pridetas vienetas gale. GALIMA PAKEISTI I WHILE
+            // Blokas[Tekstas.Length + i] = 0; 
+            
+            byte[] l = BitConverter.GetBytes(Convert.ToUInt64(Tekstas.Length * 8)).Reverse().ToArray();
+
+            l.CopyTo(Blokas, Tekstas.Length + 1 + (k / 8));
+
+            foreach (byte i in Blokas)
             {
                 string KonvertuotiIBinary = Convert.ToString(i, 2).PadLeft(8, '0'); //paverciama i binary
-                Console.Write(KonvertuotiIBinary + " ");
+                    Console.Write(KonvertuotiIBinary + " ");
             }
-            //Console.WriteLine("programos pabaiga, spauskite norint isjungti");
+
+            #endregion
+
+            #region Parsing
+
+
+            #endregion
             Console.ReadLine();
         }
     }
