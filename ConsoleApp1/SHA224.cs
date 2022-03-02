@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Diagnostics;
 
-namespace ConsoleApp1
+namespace SHA224
 {
     internal class Program
     {
@@ -72,8 +72,27 @@ namespace ConsoleApp1
             #endregion
 
             #region Parsing
+            int N = Blokas.Length / 64; //padalinam visa i 64baitu(512bitu) gabalus
+            byte[,] chunk = new byte[N,64];
+            Console.WriteLine();
+            for (int i = 0; i < N; i++)
+            {
+                for (int j = 0; j < 64; j++)
+                {
+                    chunk[i, j] = Blokas[(i * 64) + j];
+                    Console.Write(chunk[i, j]);
+                }         
 
+            }
 
+            for(int i = 0; i < N; i++)
+            {
+                uint[] w = new uint[64];
+                for (int j = 0; j < 16; j+=4)
+                {
+                    //
+                }
+            }
             #endregion
             Console.ReadLine();
         }
