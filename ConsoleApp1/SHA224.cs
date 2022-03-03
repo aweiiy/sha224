@@ -80,17 +80,19 @@ namespace SHA224
                 for (int j = 0; j < 64; j++)
                 {
                     chunk[i, j] = Blokas[(i * 64) + j];
-                    Console.Write(chunk[i, j]);
                 }         
 
             }
 
-            for(int i = 0; i < N; i++)
+            int[] w = new int[64];
+
+            for (int i = 0; i < N; i++)
             {
-                uint[] w = new uint[64];
-                for (int j = 0; j < 16; j+=4)
+                int x = 0;
+                for (int j = 0; j < 16; j++)
                 {
-                    //
+                  w[j] = chunk[i,x] << 24 | (chunk[i,x + 1] << 16) | (chunk[i,x + 2] << 8) | (chunk[i,x + 3]);
+                    x += 4;
                 }
             }
             #endregion
