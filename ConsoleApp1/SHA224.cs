@@ -32,7 +32,7 @@ namespace SHA224
             #region Failo nuskaitymas
             if (args.Length == 0) //Tikrina ar paduotas failas. Jei failas paleidimo metu nenurodytas, programa issijungia.
             {
-                Console.Write("Privalote nurodyti failo pavadinima kaip parametra. PVZ.: SHA224.EXE Failas.txt");
+                Console.Write("Privalote nurodyti failo pavadinima ir vieta kaip parametra. PVZ.: SHA224.EXE ./Failas.txt");
                 Console.ReadLine();
                 Environment.Exit(0);
                 return;
@@ -56,7 +56,6 @@ namespace SHA224
             for (k = 0; (Tekstas.Length * 8 + 8 + k + 64) % 512 != 0; k += 8) ; // Suks cikla kol ras k su kurio modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka.
 
             #if DEBUG
-            Console.WriteLine("Nuliu kiekis: " + k);
             Console.WriteLine("Raidziu kiekis faile: " + Tekstas.Length);
             Console.WriteLine("Bitai bloke: " + (64 + k + 8 + (Tekstas.Length * 8)));
             Console.WriteLine("Baitai bloke: " + (64 + k + 8 + Tekstas.Length * 8) / 8);
@@ -66,7 +65,7 @@ namespace SHA224
             // 64 - galiniai bitai teksto ilgiui, k - nuliu baitai, 8 - tai vienetas iterptas teksto gale, Tekstas.Length*8 pavercia i bitus.
             byte[] Blokas = new byte[(64 + k + 8 + (Tekstas.Length*8))/8]; //sukuriame bloka, kurio dydis yra apskaicuojamas pagal paduota teksto ilgi.
             
-            Tekstas.CopyTo(Blokas,0); //perkeliame baitus i naujai sukurta suformatuota bloka
+            Array.Copy(Tekstas,Blokas,Tekstas.Length); //perkeliame baitus i naujai sukurta suformatuota bloka
 
             Blokas[Tekstas.Length] = 128; // (128 DEC = 10000000 BIN) pridedame 1 po teksto bitais
             
@@ -105,19 +104,22 @@ namespace SHA224
                 int x = 0;
                 for (int j = 0; j < 16; j++)
                 {
-                    
+                    // i pirmus 16 w (zodziu?) sudedame pirma chunk
                     w[j] = ((uint)(chunk[i,x] << 24 | (chunk[i,x + 1] << 16) | (chunk[i,x + 2] << 8) | (chunk[i,x + 3]))); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
                     // 01000100 00000000 00000000 00000000 -> 01000100 00011100 00000000 00000000  -> 01000100 00011100 01000001 00000000 ...
                     x += 4;
                 }
                 for(int m = 16; m < 64; m++)
                 {
-                    //
+                // kitus w (zodziais?) padarome pagal formule:  w[i-16] + s0 + w[i-7] + s1
+
 
                     uint s0 = ((w[m - 15] >> 7) | (w[m - 15] << (32 - 7))) ^ ((w[m - 15] >> 18) | (w[m - 15] << (32 - 18))) ^ (w[m - 15] >> 3);
                     uint s1 = ((w[m - 2] >> 17) | (w[m - 2] << (32 - 17))) ^ ((w[m - 2] >> 19) | (w[m - 2] << (32 - 19))) ^ (w[m - 2] >> 10);
                     w[m] = (w[m - 16] + s0 + w[m - 7] + s1);
                 }
+
+                // inicializuojame astuonis darbinius kintamuosius ir pirmam cikle jiems priskiariame pradines hash reiksmes, kurios deklaruotos programos pradzioje, o veliau jei reikia, naujai apskaiciuotas
                 uint a = H[0];
                 uint b = H[1];
                 uint c = H[2];
@@ -129,6 +131,8 @@ namespace SHA224
 
                 for(int n = 0; n < 64; n++)
                 {
+                    // temp1 := h + S1 + choice + k[i] + w[i]
+                    // temp2 := S0 + majority
                     uint S1 = ((e >> 6) | (e << (32 - 6))) ^ ((e >> 11) | (e << (32 - 11))) ^ ((e >> 25) | (e << (32 - 25)));
                     uint ch = (e & f) ^ (~e & g);
                     uint temp1 = h + S1 + ch + K[n] + w[n];
@@ -136,6 +140,7 @@ namespace SHA224
                     uint maj = (a & b) ^ (a & c) ^ (b & c);
                     uint temp2 = S0 + maj;
 
+                    //atnaujiname darbinius kintamuosius
                     h = g;
                     g = f;
                     f = e;
@@ -145,7 +150,7 @@ namespace SHA224
                     b = a;
                     a = temp1 + temp2;
                 }
-
+                //atnaujiname hash reiksmes
                 H[0] += a;
                 H[1] += b;
                 H[2] += c;
@@ -157,14 +162,14 @@ namespace SHA224
 
             }
             #endregion
-            byte[] finalinis = new byte[28];
+            byte[] finalinis = new byte[28]; //inicializuojame finalini masyva, kuriame bus rezultatas
 
-            for(int i = 0; i < 7; i++)
+            for(int i = 0; i < 7; i++) //naudojam tik 7 H vietoj visu 8, nes 28 baitai
             {
-                byte[] _ = new byte[28];
-                _ = BitConverter.GetBytes(H[i]);
-                Array.Reverse(_);
-                Array.Copy(_, 0, finalinis, i*4, 4);
+                byte[] _ = new byte[28]; //laikinas masyvas
+                _ = BitConverter.GetBytes(H[i]); // gauname H reiksme
+                Array.Reverse(_); // gauta reiksme apsukam
+                Array.Copy(_, 0, finalinis, i*4, 4); // kopijuojame i finalini po 4 baitus, kas 4 indeksa
             }
             foreach (byte b in finalinis)
             {
