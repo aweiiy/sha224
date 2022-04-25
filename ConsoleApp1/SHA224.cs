@@ -53,7 +53,7 @@ namespace SHA224
 
             int k; //nuliu skaitiklis
 
-            for (k = 0; (Tekstas.Length * 8 + 8 + k + 64) % 512 != 0; k += 8) ; // Suks cikla kol ras k su kurio modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka.
+            for (k = 0; (Tekstas.Length * 8 + 8 + k + 64) % 512 != 0; k += 8); // Suks cikla kol ras k su kurio modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka.
 
             #if DEBUG
             Console.WriteLine("Raidziu kiekis faile: " + Tekstas.Length);
@@ -68,10 +68,14 @@ namespace SHA224
             Array.Copy(Tekstas,Blokas,Tekstas.Length); //perkeliame baitus i naujai sukurta suformatuota bloka
 
             Blokas[Tekstas.Length] = 128; // (128 DEC = 10000000 BIN) pridedame 1 po teksto bitais
-            
-            byte[] l = BitConverter.GetBytes(Convert.ToUInt64(Tekstas.Length * 8)).Reverse().ToArray(); //apsakicuojamas teksto ilgis baitais
 
-            l.CopyTo(Blokas, Tekstas.Length + 1 + (k / 8)); // apskaiciuotas teksto ilgis pridedamas Bloko gale
+            UInt64 tekstoIlgis = Convert.ToUInt64(Tekstas.Length * 8); //ilgis paverciamas i 64 bitu skaiciu
+
+            byte[] l = BitConverter.GetBytes(tekstoIlgis);//apsakicuojamas teksto ilgis baitais
+
+            Array.Reverse(l, 0, l.Length); //apsukamas masyvas, kad ilgis butu gale
+
+            Array.Copy(l, 0, Blokas, Tekstas.Length + 1 + (k / 8), l.Length); // apskaiciuotas teksto ilgis pridedamas Bloko gale
 
             #if DEBUG
             foreach (byte i in Blokas)
@@ -104,7 +108,7 @@ namespace SHA224
                 int x = 0;
                 for (int j = 0; j < 16; j++)
                 {
-                    // i pirmus 16 w (zodziu?) sudedame pirma chunk
+                    // i pirmus 16 w (message schedule array) (zodziu?) sudedame pirma chunk
                     w[j] = ((uint)(chunk[i,x] << 24 | (chunk[i,x + 1] << 16) | (chunk[i,x + 2] << 8) | (chunk[i,x + 3]))); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
                     // 01000100 00000000 00000000 00000000 -> 01000100 00011100 00000000 00000000  -> 01000100 00011100 01000001 00000000 ...
                     x += 4;
@@ -131,24 +135,24 @@ namespace SHA224
 
                 for(int n = 0; n < 64; n++)
                 {
-                    // temp1 := h + S1 + choice + k[i] + w[i]
-                    // temp2 := S0 + majority
+                    // T1 := h + S1 + choice + k[i] + w[i]
+                    // T2 := S0 + majority
                     uint S1 = ((e >> 6) | (e << (32 - 6))) ^ ((e >> 11) | (e << (32 - 11))) ^ ((e >> 25) | (e << (32 - 25)));
                     uint ch = (e & f) ^ (~e & g);
-                    uint temp1 = h + S1 + ch + K[n] + w[n];
                     uint S0 = ((a >> 2) | (a << (32 - 2))) ^ ((a >> 13) | (a << (32 - 13))) ^ ((a >> 22) | (a << (32 - 22)));
                     uint maj = (a & b) ^ (a & c) ^ (b & c);
-                    uint temp2 = S0 + maj;
 
                     //atnaujiname darbinius kintamuosius
+                    uint T1 = h + S1 + ch + K[n] + w[n];
+                    uint T2 = S0 + maj;
                     h = g;
                     g = f;
                     f = e;
-                    e = d + temp1;
+                    e = d + T1;
                     d = c;
                     c = b;
                     b = a;
-                    a = temp1 + temp2;
+                    a = T1 + T2;
                 }
                 //atnaujiname hash reiksmes
                 H[0] += a;
