@@ -27,7 +27,36 @@ namespace SHA224
         0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
         0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
         };
-        static void Main(string[] args)
+
+        public static int zeroCounter(byte[] Tekstas) //si funkcija grazins nuliu skaiciu bloke.
+        {
+            int k = 0; //nuliu skaitiklis
+            
+            // Tekstas.Length + 1 baitas po teksto + k nuliu + 8 baitai teksto ilgio.
+            for (int i = 0; (Tekstas.Length + 1 + k + 8) % 64 != 0; i ++)
+            {
+                k ++;
+            }; // Suks cikla kol ras k su kurio modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka.
+
+            return k; //grazins nuliu skaiciu, kurio reikes uzpildyti bloka.
+        }
+        
+        public static void transfer(byte[] Tekstas, byte[] Blokas, int k)
+        {
+            Array.Copy(Tekstas, Blokas, Tekstas.Length); //perkeliame baitus i naujai sukurta suformatuota bloka
+
+            Blokas[Tekstas.Length] = 128; // (128 DEC = 10000000 BIN) pridedame 1 po teksto bitais
+
+            UInt64 tekstoIlgis = Convert.ToUInt64(Tekstas.Length * 8); //ilgis paverciamas i 64 bitu skaiciu
+
+            byte[] l = BitConverter.GetBytes(tekstoIlgis);//apsakicuojamas teksto ilgis baitais
+
+            Array.Reverse(l, 0, l.Length); //apsukamas masyvas, kad ilgis butu gale
+
+            Array.Copy(l, 0, Blokas, Tekstas.Length + 1 + k, l.Length); // apskaiciuotas teksto ilgis pridedamas Bloko gale
+        }
+
+            static void Main(string[] args)
         {
             #region Failo nuskaitymas
             if (args.Length == 0) //Tikrina ar paduotas failas. Jei failas paleidimo metu nenurodytas, programa issijungia.
@@ -51,31 +80,24 @@ namespace SHA224
              * 4. surandame kokio ilgio yra pradinis tekstas, ji paverciame kovertuojame i bitus ir paverciame i 64bitu skaiciu, tada idedame i bloko gala.
              */
 
-            int k; //nuliu skaitiklis
+            
+            int k = zeroCounter(Tekstas);
 
-            for (k = 0; (Tekstas.Length * 8 + 8 + k + 64) % 512 != 0; k += 8); // Suks cikla kol ras k su kurio modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka.
+            // 64 - galiniai bitai teksto ilgiui, k - nuliu bitai, 8 - tai vienetas iterptas teksto gale, Tekstas.Length*8 pavercia i bitus.
+            int bitai = 64 + (k * 8) + 8 + (Tekstas.Length * 8);
 
             #if DEBUG
-            Console.WriteLine("Raidziu kiekis faile: " + Tekstas.Length);
-            Console.WriteLine("Bitai bloke: " + (64 + k + 8 + (Tekstas.Length * 8)));
-            Console.WriteLine("Baitai bloke: " + (64 + k + 8 + Tekstas.Length * 8) / 8);
+            Console.WriteLine(Encoding.UTF8.GetString(Tekstas));
+            Console.WriteLine("Simboliu kiekis faile: " + Tekstas.Length);
+            Console.WriteLine("Bitai bloke: " + bitai);
+            Console.WriteLine("Baitai bloke: " + bitai / 8);
             Console.WriteLine();
             #endif
 
-            // 64 - galiniai bitai teksto ilgiui, k - nuliu baitai, 8 - tai vienetas iterptas teksto gale, Tekstas.Length*8 pavercia i bitus.
-            byte[] Blokas = new byte[(64 + k + 8 + (Tekstas.Length*8))/8]; //sukuriame bloka, kurio dydis yra apskaicuojamas pagal paduota teksto ilgi.
-            
-            Array.Copy(Tekstas,Blokas,Tekstas.Length); //perkeliame baitus i naujai sukurta suformatuota bloka
+            byte[] Blokas = new byte[bitai / 8];
 
-            Blokas[Tekstas.Length] = 128; // (128 DEC = 10000000 BIN) pridedame 1 po teksto bitais
 
-            UInt64 tekstoIlgis = Convert.ToUInt64(Tekstas.Length * 8); //ilgis paverciamas i 64 bitu skaiciu
-
-            byte[] l = BitConverter.GetBytes(tekstoIlgis);//apsakicuojamas teksto ilgis baitais
-
-            Array.Reverse(l, 0, l.Length); //apsukamas masyvas, kad ilgis butu gale
-
-            Array.Copy(l, 0, Blokas, Tekstas.Length + 1 + (k / 8), l.Length); // apskaiciuotas teksto ilgis pridedamas Bloko gale
+            transfer(Tekstas, Blokas, k);
 
             #if DEBUG
             foreach (byte i in Blokas)
@@ -96,7 +118,7 @@ namespace SHA224
             {
                 for (int j = 0; j < 64; j++)
                 {
-                    chunk[i, j] = Blokas[(i * 64) + j]; //i*64 paema 512bitus is Bloko, o +j nurodo indexa pvz.: (0*64)+0=0, (1*64)+0=64 <- Jau antras chunk
+                    chunk[i, j] = Blokas[i * 64 + j]; //i*64 paema 512bitus is Bloko, o +j nurodo indexa pvz.: (0*64)+0=0, (1*64)+0=64 <- Jau antras chunk
                 }         
 
             }
@@ -109,18 +131,23 @@ namespace SHA224
                 for (int j = 0; j < 16; j++)
                 {
                     // i pirmus 16 w (message schedule array) (zodziu?) sudedame pirma chunk
-                    w[j] = ((uint)(chunk[i,x] << 24 | (chunk[i,x + 1] << 16) | (chunk[i,x + 2] << 8) | (chunk[i,x + 3]))); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
-                    // 01000100 00000000 00000000 00000000 -> 01000100 00011100 00000000 00000000  -> 01000100 00011100 01000001 00000000 ...
+                    w[j] = ((uint)(chunk[i,x] << 24 |
+                        (chunk[i,x + 1] << 16) |
+                        (chunk[i,x + 2] << 8) |
+                        (chunk[i,x + 3]))); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
+                    // 01010100 00000000 00000000 00000000 -> 01010100 01101000 00000000 00000000  -> 01010100 01101000 01100101 00000000 ...
                     x += 4;
                 }
                 for(int m = 16; m < 64; m++)
                 {
-                // kitus w (zodziais?) padarome pagal formule:  w[i-16] + s0 + w[i-7] + s1
+                    // kitus w (zodziais?) padarome pagal formule:  s1(w[m-2]) + w[m - 7] + s0(m-15) + w[m - 16]
+                    // s0 = ROTR^7(x) xor ROTR^18(x) xor SHR^3(x)
+                    // s1 = ROTR^17(x) xor ROTR^19(x) xor SHR^10(x)
 
 
                     uint s0 = ((w[m - 15] >> 7) | (w[m - 15] << (32 - 7))) ^ ((w[m - 15] >> 18) | (w[m - 15] << (32 - 18))) ^ (w[m - 15] >> 3);
                     uint s1 = ((w[m - 2] >> 17) | (w[m - 2] << (32 - 17))) ^ ((w[m - 2] >> 19) | (w[m - 2] << (32 - 19))) ^ (w[m - 2] >> 10);
-                    w[m] = (w[m - 16] + s0 + w[m - 7] + s1);
+                    w[m] = (s1 + w[m - 7] + s0 + w[m - 16]);
                 }
 
                 // inicializuojame astuonis darbinius kintamuosius ir pirmam cikle jiems priskiariame pradines hash reiksmes, kurios deklaruotos programos pradzioje, o veliau jei reikia, naujai apskaiciuotas
@@ -135,16 +162,19 @@ namespace SHA224
 
                 for(int n = 0; n < 64; n++)
                 {
-                    // T1 := h + S1 + choice + k[i] + w[i]
-                    // T2 := S0 + majority
-                    uint S1 = ((e >> 6) | (e << (32 - 6))) ^ ((e >> 11) | (e << (32 - 11))) ^ ((e >> 25) | (e << (32 - 25)));
+                    // T1 = h + Sum1 + choice + k[i] + w[i]
+                    // T2 = Sum0 + majority
+                    // ch = (x & y ) ^ (~x & z); maj = (x & y) ^ (x & z) ^ (y & z);
+                    // Sum0 = ROTR^2(x) ^ ROTR^13(x) ^ ROTR^22(x); Sum1 = ROTR^6(x) ^ ROTR^11(x) ^ ROTR^25(x);
+
+                    uint Sum1 = ((e >> 6) | (e << (32 - 6))) ^ ((e >> 11) | (e << (32 - 11))) ^ ((e >> 25) | (e << (32 - 25)));
                     uint ch = (e & f) ^ (~e & g);
-                    uint S0 = ((a >> 2) | (a << (32 - 2))) ^ ((a >> 13) | (a << (32 - 13))) ^ ((a >> 22) | (a << (32 - 22)));
+                    uint Sum0 = ((a >> 2) | (a << (32 - 2))) ^ ((a >> 13) | (a << (32 - 13))) ^ ((a >> 22) | (a << (32 - 22)));
                     uint maj = (a & b) ^ (a & c) ^ (b & c);
 
+                    uint T1 = h + Sum1 + ch + K[n] + w[n];
+                    uint T2 = Sum0 + maj;
                     //atnaujiname darbinius kintamuosius
-                    uint T1 = h + S1 + ch + K[n] + w[n];
-                    uint T2 = S0 + maj;
                     h = g;
                     g = f;
                     f = e;
@@ -185,7 +215,7 @@ namespace SHA224
         }
         private static void Spausdinti(byte[] Tekstas) // Si funkcija isveda atsakyma i faila.
         {
-            string Rezultatas = @"rezultatas.txt"; //Deklaruojame rezultato faila.
+            string Rezultatas = "rezultatas.txt"; //Deklaruojame rezultato faila.
 
             try
             {
