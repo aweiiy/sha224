@@ -37,7 +37,7 @@ namespace SHA224
             for (int i = 0; (Tekstas.Length + 9 + k) % 64 != 0; i ++)
             {
                 k ++;
-            }; // Suks cikla kol ras k su kurio modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka.
+            }; // Suks cikla kol ras k su kuriuo modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka.
 
             return k; //grazins nuliu skaiciu, kurio reikes uzpildyti bloka.
         }
@@ -59,90 +59,81 @@ namespace SHA224
 
         private static void Padalinimas(int N, byte[] Blokas, byte[,] chunk)
         {
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < 64; i++)
             {
-                for (int j = 0; j < 64; j++)
-                {
-                    chunk[i, j] = Blokas[i * 64 + j]; //i*64 paema 512bitus is Bloko, o +j nurodo indexa pvz.: (0*64)+0=0, (1*64)+0=64 <- Jau antras chunk
-                }
-
+                chunk[N, i] = Blokas[N * 64 + i]; //i*64 paema 512bitus is Bloko, o +j nurodo indexa pvz.: (0*64)+0=0, (1*64)+0=64 <- Jau antras chunk
             }
         }
 
         private static void Skaiciavimas(int N, byte[,] chunk)
         {
-            for (int i = 0; i < N; i++) //Suks cikla tiek kartu, kiek yra gabalu
+            uint[] w = new uint[64];
+            int x = 0;
+            for (int j = 0; j < 16; j++)
             {
-                uint[] w = new uint[64];
-                int x = 0;
-                for (int j = 0; j < 16; j++)
-                {
-                    // i pirmus 16 w (message schedule array) (zodziu?) sudedame pirma chunk
-                    w[j] = ((uint)(chunk[i, x] << 24 |
-                        (chunk[i, x + 1] << 16) |
-                        (chunk[i, x + 2] << 8) |
-                        (chunk[i, x + 3]))); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
-                    // 01010100 00000000 00000000 00000000 -> 01010100 01101000 00000000 00000000  -> 01010100 01101000 01100101 00000000 ...
-                    x += 4;
-                }
-                for (int m = 16; m < 64; m++)
-                {
-                    // kitus w (zodziais?) padarome pagal formule:  s1(w[m-2]) + w[m - 7] + s0(m-15) + w[m - 16]
-                    // s0 = ROTR^7(x) xor ROTR^18(x) xor SHR^3(x)
-                    // s1 = ROTR^17(x) xor ROTR^19(x) xor SHR^10(x)
+                // i pirmus 16 w (message schedule array) (zodziu?) sudedame einamojo gabalo baitus
+                w[j] = ((uint)(chunk[N, x] << 24 |
+                    (chunk[N, x + 1] << 16) |
+                    (chunk[N, x + 2] << 8) |
+                    (chunk[N, x + 3]))); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
+                // 01010100 00000000 00000000 00000000 -> 01010100 01101000 00000000 00000000  -> 01010100 01101000 01100101 00000000 ...
+                x += 4;
+            }
+            for (int m = 16; m < 64; m++)
+            {
+                // kitus w (zodziais?) padarome pagal formule:  s1(w[m-2]) + w[m - 7] + s0(m-15) + w[m - 16]
+                // s0 = ROTR^7(x) xor ROTR^18(x) xor SHR^3(x)
+                // s1 = ROTR^17(x) xor ROTR^19(x) xor SHR^10(x)
 
 
-                    uint s0 = ((w[m - 15] >> 7) | (w[m - 15] << (32 - 7))) ^ ((w[m - 15] >> 18) | (w[m - 15] << (32 - 18))) ^ (w[m - 15] >> 3);
-                    uint s1 = ((w[m - 2] >> 17) | (w[m - 2] << (32 - 17))) ^ ((w[m - 2] >> 19) | (w[m - 2] << (32 - 19))) ^ (w[m - 2] >> 10);
-                    w[m] = (s1 + w[m - 7] + s0 + w[m - 16]);
-                }
-
-                // inicializuojame astuonis darbinius kintamuosius ir pirmam cikle jiems priskiariame pradines hash reiksmes, kurios deklaruotos programos pradzioje, o veliau jei reikia, naujai apskaiciuotas
-                uint a = H[0];
-                uint b = H[1];
-                uint c = H[2];
-                uint d = H[3];
-                uint e = H[4];
-                uint f = H[5];
-                uint g = H[6];
-                uint h = H[7];
-
-                for (int n = 0; n < 64; n++)
-                {
-                    // T1 = h + Sum1 + choice + k[i] + w[i]
-                    // T2 = Sum0 + majority
-                    // ch = (x & y ) ^ (~x & z); maj = (x & y) ^ (x & z) ^ (y & z);
-                    // Sum0 = ROTR^2(x) ^ ROTR^13(x) ^ ROTR^22(x); Sum1 = ROTR^6(x) ^ ROTR^11(x) ^ ROTR^25(x);
-
-                    uint Sum1 = ((e >> 6) | (e << (32 - 6))) ^ ((e >> 11) | (e << (32 - 11))) ^ ((e >> 25) | (e << (32 - 25)));
-                    uint ch = (e & f) ^ (~e & g);
-                    uint Sum0 = ((a >> 2) | (a << (32 - 2))) ^ ((a >> 13) | (a << (32 - 13))) ^ ((a >> 22) | (a << (32 - 22)));
-                    uint maj = (a & b) ^ (a & c) ^ (b & c);
-
-                    uint T1 = h + Sum1 + ch + K[n] + w[n];
-                    uint T2 = Sum0 + maj;
-                    //atnaujiname darbinius kintamuosius
-                    h = g;
-                    g = f;
-                    f = e;
-                    e = d + T1;
-                    d = c;
-                    c = b;
-                    b = a;
-                    a = T1 + T2;
-                }
-                //atnaujiname hash reiksmes
-                H[0] += a;
-                H[1] += b;
-                H[2] += c;
-                H[3] += d;
-                H[4] += e;
-                H[5] += f;
-                H[6] += g;
-                H[7] += h;
-
+                uint s0 = ((w[m - 15] >> 7) | (w[m - 15] << (32 - 7))) ^ ((w[m - 15] >> 18) | (w[m - 15] << (32 - 18))) ^ (w[m - 15] >> 3);
+                uint s1 = ((w[m - 2] >> 17) | (w[m - 2] << (32 - 17))) ^ ((w[m - 2] >> 19) | (w[m - 2] << (32 - 19))) ^ (w[m - 2] >> 10);
+                w[m] = (s1 + w[m - 7] + s0 + w[m - 16]);
             }
 
+            // inicializuojame astuonis darbinius kintamuosius ir pirmam cikle jiems priskiariame pradines hash reiksmes, kurios deklaruotos programos pradzioje, o veliau jei reikia, naujai apskaiciuotas
+            uint a = H[0];
+            uint b = H[1];
+            uint c = H[2];
+            uint d = H[3];
+            uint e = H[4];
+            uint f = H[5];
+            uint g = H[6];
+            uint h = H[7];
+
+            for (int n = 0; n < 64; n++)
+            {
+                // T1 = h + Sum1 + choice + k[i] + w[i]
+                // T2 = Sum0 + majority
+                // ch = (x & y ) ^ (~x & z); maj = (x & y) ^ (x & z) ^ (y & z);
+                // Sum0 = ROTR^2(x) ^ ROTR^13(x) ^ ROTR^22(x); Sum1 = ROTR^6(x) ^ ROTR^11(x) ^ ROTR^25(x);
+
+                uint Sum1 = ((e >> 6) | (e << (32 - 6))) ^ ((e >> 11) | (e << (32 - 11))) ^ ((e >> 25) | (e << (32 - 25)));
+                uint ch = (e & f) ^ (~e & g);
+                uint Sum0 = ((a >> 2) | (a << (32 - 2))) ^ ((a >> 13) | (a << (32 - 13))) ^ ((a >> 22) | (a << (32 - 22)));
+                uint maj = (a & b) ^ (a & c) ^ (b & c);
+
+                uint T1 = h + Sum1 + ch + K[n] + w[n];
+                uint T2 = Sum0 + maj;
+                //atnaujiname darbinius kintamuosius
+                h = g;
+                g = f;
+                f = e;
+                e = d + T1;
+                d = c;
+                c = b;
+                b = a;
+                a = T1 + T2;
+            }
+            //atnaujiname hash reiksmes
+            H[0] += a;
+            H[1] += b;
+            H[2] += c;
+            H[3] += d;
+            H[4] += e;
+            H[5] += f;
+            H[6] += g;
+            H[7] += h;
         }
 
         private static void Apdorojimas(byte[] finalinis)
@@ -248,9 +239,12 @@ namespace SHA224
             
             byte[,] chunk = new byte[N,64];//padalinam i 64baitu(512bitu) gabalus
 
-            Padalinimas(N, Blokas, chunk);
-
-            Skaiciavimas(N, chunk);
+            for (int i = 0; i < N; i++)
+            {
+                Padalinimas(i, Blokas, chunk);
+                
+                Skaiciavimas(i, chunk);
+            }
 
             #endregion
             
