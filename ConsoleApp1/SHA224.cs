@@ -28,102 +28,49 @@ namespace SHA224
         0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
         };
 
-        public static int zeroCounter(byte[] Tekstas) //si funkcija grazins nuliu skaiciu bloke.
+        private static byte[] finalinis = new byte[28]; //inicializuojame finalini masyva, kuriame bus rezultatas
+
+        private static int NuliuKiekis(byte[] Tekstas) //si funkcija grazins nuliu skaiciu bloke.
         {
             int k = 0; //nuliu skaitiklis
             
-            // Tekstas.Length + 1 baitas po teksto + k nuliu + 8 baitai teksto ilgio.
-            for (int i = 0; (Tekstas.Length + 1 + k + 8) % 64 != 0; i ++)
+            for (int i = 0; (Tekstas.Length + 9 + k) % 64 != 0; i ++)
             {
                 k ++;
             }; // Suks cikla kol ras k su kurio modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka.
 
             return k; //grazins nuliu skaiciu, kurio reikes uzpildyti bloka.
         }
-        
-        public static void transfer(byte[] Tekstas, byte[] Blokas, int k)
+
+        private static void Formatavimas(byte[] Tekstas, byte[] Blokas, int k)
         {
-            Array.Copy(Tekstas, Blokas, Tekstas.Length); //perkeliame baitus i naujai sukurta suformatuota bloka
+            Array.Copy(Tekstas, Blokas, Tekstas.Length); //perkeliame pateikto teksto baitus i naujai sukurta bloka, su kuriuo atlkisime tolimesnius veiksmus
 
             Blokas[Tekstas.Length] = 128; // (128 DEC = 10000000 BIN) pridedame 1 po teksto bitais
 
             UInt64 tekstoIlgis = Convert.ToUInt64(Tekstas.Length * 8); //ilgis paverciamas i 64 bitu skaiciu
 
-            byte[] l = BitConverter.GetBytes(tekstoIlgis);//apsakicuojamas teksto ilgis baitais
+            byte[] l = BitConverter.GetBytes(tekstoIlgis);//teksto ilgis paverciamas i baitu masyva
 
             Array.Reverse(l, 0, l.Length); //apsukamas masyvas, kad ilgis butu gale
 
             Array.Copy(l, 0, Blokas, Tekstas.Length + 1 + k, l.Length); // apskaiciuotas teksto ilgis pridedamas Bloko gale
         }
 
-            static void Main(string[] args)
+        private static void Padalinimas(int N, byte[] Blokas, byte[,] chunk)
         {
-            #region Failo nuskaitymas
-            if (args.Length == 0) //Tikrina ar paduotas failas. Jei failas paleidimo metu nenurodytas, programa issijungia.
-            {
-                Console.Write("Privalote nurodyti failo pavadinima ir vieta kaip parametra. PVZ.: SHA224.EXE ./Failas.txt");
-                Console.ReadLine();
-                Environment.Exit(0);
-                return;
-            }
-
-            byte[] Tekstas = File.ReadAllBytes(args[0]); //Nuskaitomi baitai is paduoto failo.
-
-            #endregion
-
-            #region PREPROCESSING
-            //Konstruojame bloka
-            /* Kad tekstas butu suskirstytas po 512bitu:
-             * 1. apskaiciuojame kiek reikes 0;
-             * 2. apskaiciuojame kokio dydzio reikes bloko
-             * 3. prideti 1 teksto gale.
-             * 4. surandame kokio ilgio yra pradinis tekstas, ji paverciame kovertuojame i bitus ir paverciame i 64bitu skaiciu, tada idedame i bloko gala.
-             */
-
-            
-            int k = zeroCounter(Tekstas);
-
-            // 64 - galiniai bitai teksto ilgiui, k - nuliu bitai, 8 - tai vienetas iterptas teksto gale, Tekstas.Length*8 pavercia i bitus.
-            int bitai = 64 + (k * 8) + 8 + (Tekstas.Length * 8);
-
-            #if DEBUG
-            Console.WriteLine(Encoding.UTF8.GetString(Tekstas));
-            Console.WriteLine("Simboliu kiekis faile: " + Tekstas.Length);
-            Console.WriteLine("Bitai bloke: " + bitai);
-            Console.WriteLine("Baitai bloke: " + bitai / 8);
-            Console.WriteLine();
-            #endif
-
-            byte[] Blokas = new byte[bitai / 8];
-
-
-            transfer(Tekstas, Blokas, k);
-
-            #if DEBUG
-            foreach (byte i in Blokas)
-            {
-                string KonvertuotiIBinary = Convert.ToString(i, 2).PadLeft(8, '0'); //paverciama i binary
-                    Console.Write(KonvertuotiIBinary + " ");
-            }
-            Console.WriteLine();
-            Console.WriteLine();
-            #endif
-
-            #endregion
-
-            #region Parsing
-            int N = Blokas.Length / 64; //suzinome kiek reikes gabalu
-            byte[,] chunk = new byte[N,64];//padalinam i 64baitu(512bitu) gabalus
             for (int i = 0; i < N; i++)
             {
                 for (int j = 0; j < 64; j++)
                 {
                     chunk[i, j] = Blokas[i * 64 + j]; //i*64 paema 512bitus is Bloko, o +j nurodo indexa pvz.: (0*64)+0=0, (1*64)+0=64 <- Jau antras chunk
-                }         
+                }
 
             }
+        }
 
-
+        private static void Skaiciavimas(int N, byte[,] chunk)
+        {
             for (int i = 0; i < N; i++) //Suks cikla tiek kartu, kiek yra gabalu
             {
                 uint[] w = new uint[64];
@@ -131,14 +78,14 @@ namespace SHA224
                 for (int j = 0; j < 16; j++)
                 {
                     // i pirmus 16 w (message schedule array) (zodziu?) sudedame pirma chunk
-                    w[j] = ((uint)(chunk[i,x] << 24 |
-                        (chunk[i,x + 1] << 16) |
-                        (chunk[i,x + 2] << 8) |
-                        (chunk[i,x + 3]))); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
+                    w[j] = ((uint)(chunk[i, x] << 24 |
+                        (chunk[i, x + 1] << 16) |
+                        (chunk[i, x + 2] << 8) |
+                        (chunk[i, x + 3]))); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
                     // 01010100 00000000 00000000 00000000 -> 01010100 01101000 00000000 00000000  -> 01010100 01101000 01100101 00000000 ...
                     x += 4;
                 }
-                for(int m = 16; m < 64; m++)
+                for (int m = 16; m < 64; m++)
                 {
                     // kitus w (zodziais?) padarome pagal formule:  s1(w[m-2]) + w[m - 7] + s0(m-15) + w[m - 16]
                     // s0 = ROTR^7(x) xor ROTR^18(x) xor SHR^3(x)
@@ -160,7 +107,7 @@ namespace SHA224
                 uint g = H[6];
                 uint h = H[7];
 
-                for(int n = 0; n < 64; n++)
+                for (int n = 0; n < 64; n++)
                 {
                     // T1 = h + Sum1 + choice + k[i] + w[i]
                     // T2 = Sum0 + majority
@@ -195,26 +142,27 @@ namespace SHA224
                 H[7] += h;
 
             }
-            #endregion
-            byte[] finalinis = new byte[28]; //inicializuojame finalini masyva, kuriame bus rezultatas
 
-            for(int i = 0; i < 7; i++) //naudojam tik 7 H vietoj visu 8, nes 28 baitai
+        }
+
+        private static void Apdorojimas(byte[] finalinis)
+        {
+            for (int i = 0; i < 7; i++) //naudojam tik 7 H vietoj visu 8, nes 28 baitai
             {
                 byte[] _ = new byte[28]; //laikinas masyvas
                 _ = BitConverter.GetBytes(H[i]); // gauname H reiksme
                 Array.Reverse(_); // gauta reiksme apsukam
-                Array.Copy(_, 0, finalinis, i*4, 4); // kopijuojame i finalini po 4 baitus, kas 4 indeksa
+                Array.Copy(_, 0, finalinis, i * 4, 4); // kopijuojame i finalini po 4 baitus, kas 4 indeksa
             }
-            foreach (byte b in finalinis)
-            {
-                Console.Write(b.ToString("X2")); // atvaizduojamas 
-            }
-            Spausdinti(finalinis); // iskvieciamas spausdinimas i faila
-            
-            Console.ReadLine(); // Readline, kad neissijungtu programam
         }
-        private static void Spausdinti(byte[] Tekstas) // Si funkcija isveda atsakyma i faila.
+        
+        private static void Spausdinti(byte[] Tekstas) // Si funkcija isveda atsakyma i terminala ir i faila.
         {
+            foreach (byte b in Tekstas)
+            {
+                Console.Write(b.ToString("X2")); // atvaizduojama terminale
+            }
+
             string Rezultatas = "rezultatas.txt"; //Deklaruojame rezultato faila.
 
             try
@@ -226,7 +174,7 @@ namespace SHA224
 
                 using (StreamWriter writer = File.CreateText(Rezultatas))
                 {
-                    foreach (byte b in Tekstas) 
+                    foreach (byte b in Tekstas)
                     {
                         // Kiekviena baita spausdiname i faila
                         writer.Write(b.ToString("X2"));
@@ -237,6 +185,80 @@ namespace SHA224
             {
                 Console.WriteLine(ex.ToString());
             }
+        }
+
+        static void Main(string[] args)
+        {
+            #region Failo nuskaitymas
+            if (args.Length == 0) //Tikrina ar paduotas failas. Jei failas paleidimo metu nenurodytas, programa issijungia.
+            {
+                Console.Write("Privalote nurodyti failo pavadinima ir vieta kaip parametra. PVZ.: SHA224.EXE ./Failas.txt");
+                Console.ReadLine();
+                Environment.Exit(0);
+                return;
+            }
+
+            byte[] Tekstas = File.ReadAllBytes(args[0]); //Nuskaitomi baitai is paduoto failo.
+
+            #endregion
+
+            #region PREPROCESSING
+            //Konstruojame bloka
+            /* Kad tekstas butu suskirstytas po 512bitu:
+             * 1. apskaiciuojame kiek reikes 0;
+             * 2. apskaiciuojame kokio dydzio reikes bloko
+             * 3. prideti 1 teksto gale.
+             * 4. surandame kokio ilgio yra pradinis tekstas, ji paverciame kovertuojame i bitus ir paverciame i 64bitu skaiciu, tada idedame i bloko gala.
+             */
+
+            int k = NuliuKiekis(Tekstas);
+
+            // 64 - galiniai bitai teksto ilgiui, k - nuliu bitai, 8 - tai vienetas iterptas teksto gale, Tekstas.Length*8 pavercia i bitus.
+            int bitai = 64 + (k * 8) + 8 + (Tekstas.Length * 8);
+            int baitai = bitai / 8;
+
+            #if DEBUG
+            Console.WriteLine(Encoding.UTF8.GetString(Tekstas));
+            Console.WriteLine("Simboliu kiekis faile: " + Tekstas.Length);
+            Console.WriteLine("Bitai bloke: " + bitai);
+            Console.WriteLine("Baitai bloke: " + baitai);
+            Console.WriteLine();
+            #endif
+            
+            byte[] Blokas = new byte[baitai];
+
+
+            Formatavimas(Tekstas, Blokas, k);
+
+            #if DEBUG
+            foreach (byte i in Blokas) // Atvaizduoja bloka binary formatu
+            {
+                string KonvertuotiIBinary = Convert.ToString(i, 2).PadLeft(8, '0');
+                    Console.Write(KonvertuotiIBinary + " ");
+            }
+            Console.WriteLine();
+            Console.WriteLine();
+            #endif
+
+            #endregion
+
+            #region Parsing
+            
+            int N = baitai / 64; //suzinome kiek reikes gabalu
+            
+            byte[,] chunk = new byte[N,64];//padalinam i 64baitu(512bitu) gabalus
+
+            Padalinimas(N, Blokas, chunk);
+
+            Skaiciavimas(N, chunk);
+
+            #endregion
+            
+            Apdorojimas(finalinis);
+            
+            Spausdinti(finalinis); // iskvieciamas spausdinimas i faila
+            
+            Console.ReadLine(); // Readline, kad neissijungtu programam
         }
     }
 }
