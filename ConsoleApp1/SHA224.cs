@@ -28,18 +28,16 @@ namespace SHA224
         0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
         };
 
+        private static int k; //nuliu skaitiklis
+
         private static byte[] finalinis = new byte[28]; //inicializuojame finalini masyva, kuriame bus rezultatas
 
-        private static int NuliuKiekis(byte[] Tekstas) //si funkcija grazins nuliu skaiciu bloke.
+        private static void NuliuKiekis(byte[] Tekstas) //si funkcija suranda reikia nuliu skaiciu bloke.
         {
-            int k = 0; //nuliu skaitiklis
-            
-            for (int i = 0; (Tekstas.Length + 9 + k) % 64 != 0; i ++)
-            {
-                k ++;
-            }; // Suks cikla kol ras k su kuriuo modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka.
-
-            return k; //grazins nuliu skaiciu, kurio reikes uzpildyti bloka.
+           for (; (Tekstas.Length + 9 + k) % 64 != 0;)
+           {
+               k++;
+           }; // Suks cikla kol ras k su kuriuo modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka..
         }
 
         private static void Formatavimas(byte[] Tekstas, byte[] Blokas, int k)
@@ -52,7 +50,7 @@ namespace SHA224
 
             byte[] l = BitConverter.GetBytes(tekstoIlgis);//teksto ilgis paverciamas i baitu masyva
 
-            Array.Reverse(l, 0, l.Length); //apsukamas masyvas, kad ilgis butu gale
+            Array.Reverse(l, 0, l.Length); //apsukamas masyvas, kad ilgio simboliai butu gale
 
             Array.Copy(l, 0, Blokas, Tekstas.Length + 1 + k, l.Length); // apskaiciuotas teksto ilgis pridedamas Bloko gale
         }
@@ -61,7 +59,7 @@ namespace SHA224
         {
             for (int i = 0; i < 64; i++)
             {
-                chunk[N, i] = Blokas[N * 64 + i]; //i*64 paema 512bitus is Bloko, o +j nurodo indexa pvz.: (0*64)+0=0, (1*64)+0=64 <- Jau antras chunk
+                chunk[N, i] = Blokas[N * 64 + i]; //N*64 paema 64 baitus is Bloko, o +i nurodo indexa pvz.: (0*64)+0=0, (1*64)+0=64 <- Jau antras chunk
             }
         }
 
@@ -91,15 +89,8 @@ namespace SHA224
                 w[m] = (s1 + w[m - 7] + s0 + w[m - 16]);
             }
 
-            // inicializuojame astuonis darbinius kintamuosius ir pirmam cikle jiems priskiariame pradines hash reiksmes, kurios deklaruotos programos pradzioje, o veliau jei reikia, naujai apskaiciuotas
-            uint a = H[0];
-            uint b = H[1];
-            uint c = H[2];
-            uint d = H[3];
-            uint e = H[4];
-            uint f = H[5];
-            uint g = H[6];
-            uint h = H[7];
+            // inicializuojame astuonis darbinius kintamuosius ir jiems priskiariame pradines hash reiksmes, kurios deklaruotos programos pradzioje, o veliau jei reikia, naujai apskaiciuotas
+            uint a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
 
             for (int n = 0; n < 64; n++)
             {
@@ -202,7 +193,7 @@ namespace SHA224
              * 4. surandame kokio ilgio yra pradinis tekstas, ji paverciame kovertuojame i bitus ir paverciame i 64bitu skaiciu, tada idedame i bloko gala.
              */
 
-            int k = NuliuKiekis(Tekstas);
+            NuliuKiekis(Tekstas);
 
             // 64 - galiniai bitai teksto ilgiui, k - nuliu bitai, 8 - tai vienetas iterptas teksto gale, Tekstas.Length*8 pavercia i bitus.
             int bitai = 64 + (k * 8) + 8 + (Tekstas.Length * 8);
@@ -210,6 +201,7 @@ namespace SHA224
 
             #if DEBUG
             Console.WriteLine(Encoding.UTF8.GetString(Tekstas));
+            Console.WriteLine("nuliu skaicius: " + k);
             Console.WriteLine("Simboliu kiekis faile: " + Tekstas.Length);
             Console.WriteLine("Bitai bloke: " + bitai);
             Console.WriteLine("Baitai bloke: " + baitai);
