@@ -63,17 +63,15 @@ namespace SHA224
         private static void Skaiciavimas(byte[] chunk)
         {
             uint[] w = new uint[64];
-            int x = 0;
             for (int j = 0; j < 16; j++)
             {
                 // i pirmus 16 w (message schedule array) (zodziu?) sudedame einamojo gabalo baitus
-                w[j] = (uint)(chunk[x] << 24)
-                + (uint)(chunk[x + 1] << 16)
-                + (uint)(chunk[x + 2] << 8)
-                + (uint)(chunk[x + 3]); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
-                // 01010100 00000000 00000000 00000000 -> 01010100 01101000 00000000 00000000  -> 01010100 01101000 01100101 00000000 ...
-                x += 4;
+                byte[] _ = new byte[4];
+                Array.Copy(chunk, j * 4, _, 0, 4);
+                Array.Reverse(_);
+                w[j] = (uint)BitConverter.ToInt32(_, 0);
             }
+           
             for (int m = 16; m < 64; m++)
             {
                 // kitus w (zodziais?) padarome pagal formule:  s1(w[m-2]) + w[m - 7] + s0(m-15) + w[m - 16]
