@@ -11,7 +11,7 @@ namespace SHA224
 {
     internal class Program
     {
-        private static readonly uint[] H =
+        private static readonly uint[] H = //inicializuojami registrai
         {
          0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4
         };
@@ -34,14 +34,9 @@ namespace SHA224
 
         private static void NuliuKiekis(byte[] Tekstas) //si funkcija suranda reikia nuliu skaiciu bloke.
         {
-            // for (; (Tekstas.Length + 9 + k) % 64 != 0;)
-            // {
-            //     k++;
-            // }; // Suks cikla kol ras k su kuriuo modulis bus 0, tada lygybe bus neteisinga, o mes zinosim kiek reikes nuliu, kad uzpildyti bloka..
-
             for(; (Tekstas.Length*8 + 1 + k)%512 != 448; )
             {
-                k++;
+                k++;// Suks cikla kol ras k su kuriuo modulis bus lygus 448. 
             }
         }
 
@@ -60,25 +55,22 @@ namespace SHA224
             Array.Copy(l, 0, Blokas, Tekstas.Length + 1 + (k/8), l.Length); // apskaiciuotas teksto ilgis pridedamas Bloko gale
         }
 
-        private static void Padalinimas(int N, byte[] Blokas, byte[,] chunk)
+        private static void Padalinimas(int N, byte[] Blokas, byte[] chunk)
         {
-            for (int i = 0; i < 64; i++)
-            {
-                chunk[N, i] = Blokas[N * 64 + i]; //N*64 paema 64 baitus is Bloko, o +i nurodo indexa pvz.: (0*64)+0=0, (1*64)+0=64 <- Jau antras chunk              
-            }
+            Array.Copy(Blokas, N * 64, chunk, 0, 64); //N*64 paema 64 baitus is Bloko ir perkelia i chunk masyvo nulini indexa
         }
 
-        private static void Skaiciavimas(int N, byte[,] chunk)
+        private static void Skaiciavimas(byte[] chunk)
         {
             uint[] w = new uint[64];
             int x = 0;
             for (int j = 0; j < 16; j++)
             {
                 // i pirmus 16 w (message schedule array) (zodziu?) sudedame einamojo gabalo baitus
-                w[j] = ((uint)(chunk[N, x] << 24 |
-                    (chunk[N, x + 1] << 16) |
-                    (chunk[N, x + 2] << 8) |
-                    (chunk[N, x + 3]))); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
+                w[j] = (uint)(chunk[x] << 24)
+                + (uint)(chunk[x + 1] << 16)
+                + (uint)(chunk[x + 2] << 8)
+                + (uint)(chunk[x + 3]); //i 32bitu skaiciu sutalpinami po 4 8bitu skaicius.
                 // 01010100 00000000 00000000 00000000 -> 01010100 01101000 00000000 00000000  -> 01010100 01101000 01100101 00000000 ...
                 x += 4;
             }
@@ -99,18 +91,18 @@ namespace SHA224
 
             for (int n = 0; n < 64; n++)
             {
-                // T1 = h + Sum1 + choice + k[i] + w[i]
-                // T2 = Sum0 + majority
+                // T1 = h + Sigma1 + choice + k[i] + w[i]
+                // T2 = Sigma0 + majority
                 // ch = (x & y ) ^ (~x & z); maj = (x & y) ^ (x & z) ^ (y & z);
-                // Sum0 = ROTR^2(x) ^ ROTR^13(x) ^ ROTR^22(x); Sum1 = ROTR^6(x) ^ ROTR^11(x) ^ ROTR^25(x);
+                // Sigma0 = ROTR^2(x) ^ ROTR^13(x) ^ ROTR^22(x); Sigma1 = ROTR^6(x) ^ ROTR^11(x) ^ ROTR^25(x);
 
-                uint Sum1 = ((e >> 6) | (e << (32 - 6))) ^ ((e >> 11) | (e << (32 - 11))) ^ ((e >> 25) | (e << (32 - 25)));
+                uint Sigma1 = ((e >> 6) | (e << (32 - 6))) ^ ((e >> 11) | (e << (32 - 11))) ^ ((e >> 25) | (e << (32 - 25)));
                 uint ch = (e & f) ^ (~e & g);
-                uint Sum0 = ((a >> 2) | (a << (32 - 2))) ^ ((a >> 13) | (a << (32 - 13))) ^ ((a >> 22) | (a << (32 - 22)));
+                uint Sigma0 = ((a >> 2) | (a << (32 - 2))) ^ ((a >> 13) | (a << (32 - 13))) ^ ((a >> 22) | (a << (32 - 22)));
                 uint maj = (a & b) ^ (a & c) ^ (b & c);
 
-                uint T1 = h + Sum1 + ch + K[n] + w[n];
-                uint T2 = Sum0 + maj;
+                uint T1 = h + Sigma1 + ch + K[n] + w[n];
+                uint T2 = Sigma0 + maj;
                 //atnaujiname darbinius kintamuosius
                 h = g;
                 g = f;
@@ -235,13 +227,13 @@ namespace SHA224
             
             int N = baitai / 64; //suzinome kiek reikes gabalu
             
-            byte[,] chunk = new byte[N,64];//padalinam i 64baitu(512bitu) gabalus
+            byte[] chunk = new byte[64];//inicializuojame 64baitu(512bitu) gabala
 
             for (int i = 0; i < N; i++)
             {
                 Padalinimas(i, Blokas, chunk);
                 
-                Skaiciavimas(i, chunk);
+                Skaiciavimas(chunk);
             }
 
             #endregion
