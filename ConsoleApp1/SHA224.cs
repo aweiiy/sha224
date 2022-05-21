@@ -11,12 +11,12 @@ namespace SHA224
 {
     internal class Program
     {
-        private static readonly uint[] H = //inicializuojami registrai
+        private static uint[] H = //inicializuojami registrai
         {
          0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4
         };
 
-        private static readonly uint[] K =
+        private static uint[] K =
         {
         0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
         0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
@@ -50,9 +50,9 @@ namespace SHA224
 
             byte[] l = BitConverter.GetBytes(tekstoIlgis);//teksto ilgis paverciamas i baitu masyva
 
-            Array.Reverse(l, 0, l.Length); //apsukamas masyvas, kad ilgio simboliai butu gale
+            Array.Reverse(l, 0, 8); //apsukamas masyvas, kad ilgio simboliai butu gale
 
-            Array.Copy(l, 0, Blokas, Tekstas.Length + 1 + (k/8), l.Length); // apskaiciuotas teksto ilgis pridedamas Bloko gale
+            Array.Copy(l, 0, Blokas, Tekstas.Length + 1 + (k/8), 8); // apskaiciuotas teksto ilgis pridedamas Bloko gale
         }
 
         private static void Padalinimas(int N, byte[] Blokas, byte[] chunk)
@@ -69,7 +69,7 @@ namespace SHA224
                 byte[] _ = new byte[4];
                 Array.Copy(chunk, j * 4, _, 0, 4);
                 Array.Reverse(_);
-                w[j] = (uint)BitConverter.ToInt32(_, 0);
+                w[j] = BitConverter.ToUInt32(_, 0);
             }
            
             for (int m = 16; m < 64; m++)
@@ -81,7 +81,7 @@ namespace SHA224
 
                 uint s0 = ((w[m - 15] >> 7) | (w[m - 15] << (32 - 7))) ^ ((w[m - 15] >> 18) | (w[m - 15] << (32 - 18))) ^ (w[m - 15] >> 3);
                 uint s1 = ((w[m - 2] >> 17) | (w[m - 2] << (32 - 17))) ^ ((w[m - 2] >> 19) | (w[m - 2] << (32 - 19))) ^ (w[m - 2] >> 10);
-                w[m] = (s1 + w[m - 7] + s0 + w[m - 16]);
+                w[m] = s1 + w[m - 7] + s0 + w[m - 16];
             }
 
             // inicializuojame astuonis darbinius kintamuosius ir jiems priskiariame pradines hash reiksmes, kurios deklaruotos programos pradzioje, o veliau jei reikia, naujai apskaiciuotas
@@ -176,7 +176,7 @@ namespace SHA224
             }
 
             byte[] Tekstas = File.ReadAllBytes(args[0]); //Nuskaitomi baitai is paduoto failo.
-
+          
             #endregion
 
             #region PREPROCESSING
@@ -190,8 +190,6 @@ namespace SHA224
 
             NuliuKiekis(Tekstas);
 
-            // 64 - galiniai bitai teksto ilgiui, k - nuliu bitai, 8 - tai vienetas iterptas teksto gale, Tekstas.Length*8 pavercia i bitus.
-            //int bitai = 64 + (k * 8) + 8 + (Tekstas.Length * 8);
             int bitai = Tekstas.Length * 8 + 1 + k + 64;
             int baitai = bitai / 8;
 
