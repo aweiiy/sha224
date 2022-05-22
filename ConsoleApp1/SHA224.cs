@@ -44,7 +44,7 @@ namespace SHA224
         {
             Array.Copy(Tekstas, Blokas, Tekstas.Length); //perkeliame pateikto teksto baitus i naujai sukurta bloka, su kuriuo atlkisime tolimesnius veiksmus
 
-            Blokas[Tekstas.Length] = 128; // (128 DEC = 10000000 BIN) pridedame 1 po teksto bitais
+            Blokas[Tekstas.Length] = 1 << 7; //pridedame 1 po teksto bitais
 
             UInt64 tekstoIlgis = Convert.ToUInt64(Tekstas.Length * 8); //ilgis paverciamas i 64 bitu skaiciu
 
@@ -176,17 +176,17 @@ namespace SHA224
             }
 
             byte[] Tekstas = File.ReadAllBytes(args[0]); //Nuskaitomi baitai is paduoto failo.
+
+            if(Tekstas.Length * 8 >= Math.Pow(2, 64))
+            {
+                Console.Write("Failo tekstas per ilgas.");
+                Console.ReadLine();
+                Environment.Exit(0);
+            }
           
             #endregion
 
             #region PREPROCESSING
-            //Konstruojame bloka
-            /* Kad tekstas butu suskirstytas po 512bitu:
-             * 1. apskaiciuojame kiek reikes 0;
-             * 2. apskaiciuojame kokio dydzio reikes bloko
-             * 3. prideti 1 teksto gale.
-             * 4. surandame kokio ilgio yra pradinis tekstas, ji paverciame kovertuojame i bitus ir paverciame i 64bitu skaiciu, tada idedame i bloko gala.
-             */
 
             NuliuKiekis(Tekstas);
 
