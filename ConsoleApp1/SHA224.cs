@@ -46,7 +46,7 @@ namespace SHA224
 
             Blokas[Tekstas.Length] = 1 << 7; //pridedame 1 po teksto bitais
 
-            UInt64 tekstoIlgis = Convert.ToUInt64(Tekstas.Length * 8); //ilgis paverciamas i 64 bitu skaiciu
+            ulong tekstoIlgis = Convert.ToUInt64(Tekstas.Length * 8); //ilgis paverciamas i 64 bitu skaiciu
 
             byte[] l = BitConverter.GetBytes(tekstoIlgis);//teksto ilgis paverciamas i baitu masyva
 
